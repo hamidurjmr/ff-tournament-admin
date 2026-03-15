@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FF Tournament | Admin Panel</title>
+    
+    <!-- Bootstrap 5 + Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <!-- DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    
+    <style>
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: linear-gradient(135deg, #0a0f1f 0%, #1a1f35 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(20, 30, 50, 0.8);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 30px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+        }
+
+        .admin-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 30px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 20px;
+            border-left: 5px solid cyan;
+        }
+
+        .match-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 5px solid cyan;
+        }
+
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-weight: 600;
+        }
+
+        .status-waiting { background: #f7971e; color: black; }
+        .status-live { background: #00ff88; color: black; animation: pulse 1.5s infinite; }
+        .status-completed { background: #ff416c; color: white; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; box-shadow: 0 0 20px cyan; }
+            100% { opacity: 1; }
+        }
+
+        .btn-action {
+            padding: 5px 15px;
+            border-radius: 50px;
+            margin: 2px;
+        }
+
+        .room-details {
+            background: rgba(0, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px dashed cyan;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid p-4">
+        <!-- Toast Container -->
+        <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 99999;">
+            <div class="spinner-border text-info" style="width: 80px; height: 80px;"></div>
+        </div>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="glass-card" style="max-width: 450px; margin: 100px auto;">
+            <div class="text-center mb-4">
+                <i class="bi bi-shield-lock" style="font-size: 60px; color: cyan;"></i>
+                <h2>ADMIN PANEL</h2>
+            </div>
+            <input type="email" id="adminEmail" class="form-control bg-dark text-white mb-3" placeholder="Email" value="admin@ff.com">
+            <input type="password" id="adminPassword" class="form-control bg-dark text-white mb-3" placeholder="Password" value="admin123">
+            <button class="btn btn-info w-100" onclick="adminLogin()">Login</button>
+            <p id="loginMessage" class="text-center mt-3 text-warning"></p>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboardSection" style="display: none;">
+            <!-- Header -->
+            <div class="admin-header d-flex justify-content-between align-items-center">
+                <h1><i class="bi bi-crown-fill"></i> Admin Dashboard</h1>
+                <button class="btn btn-light" onclick="logout()">Logout</button>
+            </div>
+
+            <!-- Stats -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <i class="bi bi-people"></i>
+                        <h3>Total Users</h3>
+                        <h2 id="totalUsers">0</h2>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <i class="bi bi-clock"></i>
+                        <h3>Pending Deposits</h3>
+                        <h2 id="pendingDeposits">0</h2>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <i class="bi bi-cash"></i>
+                        <h3>Pending Withdrawals</h3>
+                        <h2 id="pendingWithdrawals">0</h2>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <i class="bi bi-trophy"></i>
+                        <h3>Active Matches</h3>
+                        <h2 id="activeMatches">0</h2>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs mb-4" id="adminTabs">
+                <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#users">Users</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#deposits">Deposits</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#withdrawals">Withdrawals</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#matches">Matches</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#settings">Settings</a></li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Users Tab -->
+                <div class="tab-pane active" id="users">
+                    <div class="glass-card">
+                        <table class="table table-dark" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Wallet</th>
+                                    <th>Matches</th>
+                                    <th>Game UID</th>
+                                    <th>Referral Code</th>
+                                    <th>Referrals</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Deposits Tab -->
+                <div class="tab-pane fade" id="deposits">
+                    <div class="glass-card">
+                        <table class="table table-dark" id="depositsTable">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Amount</th>
+                                    <th>Reference</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="depositsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Withdrawals Tab -->
+                <div class="tab-pane fade" id="withdrawals">
+                    <div class="glass-card">
+                        <table class="table table-dark" id="withdrawalsTable">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Amount</th>
+                                    <th>UPI</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="withdrawalsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Matches Tab (FIXED) -->
+                <div class="tab-pane fade" id="matches">
+                    <div class="row g-4">
+                        <!-- Create Match -->
+                        <div class="col-md-4">
+                            <div class="glass-card">
+                                <h4>Create Match</h4>
+                                <select id="matchType" class="form-select mb-2">
+                                    <option value="1v1">1 vs 1</option>
+                                    <option value="2v2">2 vs 2</option>
+                                </select>
+                                <input type="number" id="entryFee" class="form-control mb-2" placeholder="Entry Fee" value="20">
+                                <input type="number" id="prize" class="form-control mb-2" placeholder="Prize" value="18">
+                                <button class="btn btn-info w-100" onclick="createMatch()">Create Match</button>
+                            </div>
+                        </div>
+
+                        <!-- Room Settings -->
+                        <div class="col-md-4">
+                            <div class="glass-card">
+                                <h4>Room Settings</h4>
+                                <select id="matchSelect" class="form-select mb-2"></select>
+                                <input type="text" id="roomId" class="form-control mb-2" placeholder="Room ID">
+                                <input type="text" id="roomPassword" class="form-control mb-2" placeholder="Room Password">
+                                <button class="btn btn-success w-100 mb-2" onclick="saveRoom()">Save Room</button>
+                                <button class="btn btn-warning w-100" onclick="startMatch()">Start Match</button>
+                            </div>
+                        </div>
+
+                        <!-- Declare Winner -->
+                        <div class="col-md-4">
+                            <div class="glass-card">
+                                <h4>Declare Winner</h4>
+                                <select id="winnerMatch" class="form-select mb-2"></select>
+                                <select id="winnerUser" class="form-select mb-2"></select>
+                                <button class="btn btn-warning w-100" onclick="declareWinner()">Declare Winner</button>
+                            </div>
+                        </div>
+
+                        <!-- All Matches List -->
+                        <div class="col-12">
+                            <div class="glass-card">
+                                <h4>All Matches</h4>
+                                <div id="matchesList"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div class="tab-pane fade" id="settings">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="glass-card">
+                                <h4>General Settings</h4>
+                                <input type="number" id="minDeposit" class="form-control mb-2" placeholder="Min Deposit">
+                                <input type="number" id="maxDeposit" class="form-control mb-2" placeholder="Max Deposit">
+                                <input type="number" id="referralBonus" class="form-control mb-2" placeholder="Referral Bonus">
+                                <input type="number" id="welcomeBonus" class="form-control mb-2" placeholder="Welcome Bonus">
+                                <button class="btn btn-info w-100" onclick="saveSettings()">Save</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="glass-card">
+                                <h4>Match Rewards</h4>
+                                <input type="number" id="bonus10" class="form-control mb-2" placeholder="10 Matches Bonus">
+                                <input type="number" id="bonus20" class="form-control mb-2" placeholder="20 Matches Bonus">
+                                <button class="btn btn-warning w-100" onclick="saveRewards()">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAZcAJNzY8nFZMD7ILuOArGmnjBeRRMgbo",
+            authDomain: "ff-tournament-81d64.firebaseapp.com",
+            projectId: "ff-tournament-81d64",
+            storageBucket: "ff-tournament-81d64.firebasestorage.app",
+            messagingSenderId: "171831529957",
+            appId: "1:171831529957:web:833981b11c3383a9f49f0c"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        function showToast(msg, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+            toast.innerHTML = msg;
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        }
+
+        // Admin Login
+        window.adminLogin = async () => {
+            const email = document.getElementById('adminEmail').value;
+            const pass = document.getElementById('adminPassword').value;
+            showLoading(true);
+            try {
+                await auth.signInWithEmailAndPassword(email, pass);
+                showToast('Login successful!');
+            } catch (error) {
+                document.getElementById('loginMessage').innerText = error.message;
+                showToast(error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        window.logout = () => auth.signOut();
+
+        // Load Users
+        async function loadUsers() {
+            const snap = await db.collection('users').get();
+            let html = '';
+            snap.forEach(doc => {
+                const u = doc.data();
+                html += `<tr>
+                    <td>${u.email}</td>
+                    <td>₹${u.wallet || 0}</td>
+                    <td>${u.matchesPlayed || 0}</td>
+                    <td>${u.gameUID || 'N/A'}</td>
+                    <td>${u.referralCode || 'N/A'}</td>
+                    <td>${u.referralCount || 0}</td>
+                </tr>`;
+            });
+            document.getElementById('usersTableBody').innerHTML = html;
+        }
+
+        // Load Deposits
+        async function loadDeposits() {
+            const snap = await db.collection('deposit_requests').orderBy('timestamp', 'desc').get();
+            let html = '';
+            snap.forEach(doc => {
+                const d = doc.data();
+                html += `<tr>
+                    <td>${d.userEmail}</td>
+                    <td>₹${d.amount}</td>
+                    <td>${d.refId}</td>
+                    <td>${d.timestamp ? new Date(d.timestamp.seconds*1000).toLocaleString() : ''}</td>
+                    <td><span class="badge bg-warning">${d.status}</span></td>
+                    <td>
+                        ${d.status === 'pending' ? `
+                            <button class="btn btn-success btn-sm" onclick="approveDeposit('${doc.id}', '${d.userId}', ${d.amount})">✓</button>
+                            <button class="btn btn-danger btn-sm" onclick="rejectDeposit('${doc.id}')">✗</button>
+                        ` : ''}
+                    </td>
+                </tr>`;
+            });
+            document.getElementById('depositsTableBody').innerHTML = html;
+        }
+
+        window.approveDeposit = async (id, uid, amount) => {
+            showLoading(true);
+            try {
+                await db.runTransaction(async (tx) => {
+                    tx.update(db.collection('users').doc(uid), {
+                        wallet: firebase.firestore.FieldValue.increment(amount)
+                    });
+                    tx.update(db.collection('deposit_requests').doc(id), { status: 'approved' });
+                });
+                showToast('Deposit approved');
+                loadDeposits();
+                updateStats();
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        window.rejectDeposit = async (id) => {
+            showLoading(true);
+            await db.collection('deposit_requests').doc(id).update({ status: 'rejected' });
+            showToast('Rejected');
+            loadDeposits();
+            showLoading(false);
+        };
+
+        // Load Withdrawals
+        async function loadWithdrawals() {
+            const snap = await db.collection('withdraw_requests').orderBy('timestamp', 'desc').get();
+            let html = '';
+            snap.forEach(doc => {
+                const w = doc.data();
+                html += `<tr>
+                    <td>${w.userEmail}</td>
+                    <td>₹${w.amount}</td>
+                    <td>${w.upiId}</td>
+                    <td>${w.timestamp ? new Date(w.timestamp.seconds*1000).toLocaleString() : ''}</td>
+                    <td><span class="badge bg-warning">${w.status}</span></td>
+                    <td>
+                        ${w.status === 'pending' ? `
+                            <button class="btn btn-success btn-sm" onclick="approveWithdrawal('${doc.id}')">✓</button>
+                        ` : ''}
+                    </td>
+                </tr>`;
+            });
+            document.getElementById('withdrawalsTableBody').innerHTML = html;
+        }
+
+        window.approveWithdrawal = async (id) => {
+            showLoading(true);
+            await db.collection('withdraw_requests').doc(id).update({ status: 'paid' });
+            showToast('Withdrawal marked paid');
+            loadWithdrawals();
+            showLoading(false);
+        };
+
+        // Create Match
+        window.createMatch = async () => {
+            const type = document.getElementById('matchType').value;
+            const entry = parseInt(document.getElementById('entryFee').value);
+            const prize = parseInt(document.getElementById('prize').value);
+            
+            showLoading(true);
+            await db.collection('matches').add({
+                type, entryFee: entry, prize, status: 'waiting', players: [],
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            showToast('Match created');
+            loadMatches();
+            showLoading(false);
+        };
+
+        // Load Matches (FIXED - Show all matches properly)
+        async function loadMatches() {
+            const snap = await db.collection('matches').orderBy('createdAt', 'desc').get();
+            
+            let options = '<option value="">Select Match</option>';
+            let listHtml = '';
+
+            snap.forEach(doc => {
+                const m = doc.data();
+                options += `<option value="${doc.id}">${m.type} - ₹${m.entryFee} (${m.status})</option>`;
+                
+                listHtml += `
+                    <div class="match-card">
+                        <div class="d-flex justify-content-between">
+                            <h5>${m.type} Match</h5>
+                            <span class="status-badge status-${m.status}">${m.status}</span>
+                        </div>
+                        <p>Entry: ₹${m.entryFee} | Prize: ₹${m.prize} | Players: ${m.players?.length || 0}/${m.type === '1v1' ? 2 : 4}</p>
+                        
+                        ${m.roomId ? `
+                            <div class="room-details">
+                                <strong>ROOM:</strong> ${m.roomId} | <strong>PASS:</strong> ${m.roomPassword}
+                            </div>
+                        ` : ''}
+                        
+                        <div class="mt-2">
+                            <button class="btn btn-danger btn-sm" onclick="deleteMatch('${doc.id}')">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('matchSelect').innerHTML = options;
+            document.getElementById('winnerMatch').innerHTML = options;
+            document.getElementById('matchesList').innerHTML = listHtml || 'No matches';
+        }
+
+        // Delete Match
+        window.deleteMatch = async (id) => {
+            if (!confirm('Delete match?')) return;
+            showLoading(true);
+            await db.collection('matches').doc(id).delete();
+            showToast('Match deleted');
+            loadMatches();
+            updateStats();
+            showLoading(false);
+        };
+
+        // Save Room (FIXED - Room details saved properly)
+        window.saveRoom = async () => {
+            const matchId = document.getElementById('matchSelect').value;
+            const roomId = document.getElementById('roomId').value;
+            const password = document.getElementById('roomPassword').value;
+
+            if (!matchId || !roomId || !password) {
+                showToast('Fill all fields', 'error');
+                return;
+            }
+
+            showLoading(true);
+            await db.collection('matches').doc(matchId).update({
+                roomId: roomId,
+                roomPassword: password
+            });
+            showToast('Room details saved! Players can now see room info when match is live.');
+            loadMatches();
+            showLoading(false);
+        };
+
+        // Start Match (FIXED - Match stays visible in Live tab)
+        window.startMatch = async () => {
+            const matchId = document.getElementById('matchSelect').value;
+            if (!matchId) return showToast('Select match', 'error');
+
+            showLoading(true);
+            await db.collection('matches').doc(matchId).update({
+                status: 'live'
+            });
+            showToast('Match started! Players can now see room details.');
+            loadMatches();
+            updateStats();
+            showLoading(false);
+        };
+
+        // Load winner users
+        document.getElementById('winnerMatch').addEventListener('change', async (e) => {
+            const matchId = e.target.value;
+            if (!matchId) return;
+            
+            const match = await (await db.collection('matches').doc(matchId).get()).data();
+            const players = match.players || [];
+            
+            let options = '<option value="">Select Winner</option>';
+            for (let uid of players) {
+                const user = await (await db.collection('users').doc(uid).get()).data();
+                options += `<option value="${uid}">${user.email}</option>`;
+            }
+            document.getElementById('winnerUser').innerHTML = options;
+        });
+
+        // Declare Winner
+        window.declareWinner = async () => {
+            const matchId = document.getElementById('winnerMatch').value;
+            const winnerId = document.getElementById('winnerUser').value;
+
+            if (!matchId || !winnerId) return showToast('Select match and winner', 'error');
+
+            showLoading(true);
+            try {
+                const match = await (await db.collection('matches').doc(matchId).get()).data();
+                
+                await db.runTransaction(async (tx) => {
+                    tx.update(db.collection('users').doc(winnerId), {
+                        wallet: firebase.firestore.FieldValue.increment(match.prize),
+                        matchesPlayed: firebase.firestore.FieldValue.increment(1)
+                    });
+                    
+                    tx.update(db.collection('matches').doc(matchId), {
+                        status: 'completed',
+                        winner: winnerId
+                    });
+
+                    for (let uid of match.players || []) {
+                        if (uid !== winnerId) {
+                            tx.update(db.collection('users').doc(uid), {
+                                matchesPlayed: firebase.firestore.FieldValue.increment(1)
+                            });
+                        }
+                    }
+                });
+                
+                showToast('Winner declared! Prize credited.');
+                loadMatches();
+                updateStats();
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Update Stats
+        async function updateStats() {
+            document.getElementById('totalUsers').innerText = (await db.collection('users').get()).size;
+            document.getElementById('pendingDeposits').innerText = (await db.collection('deposit_requests').where('status', '==', 'pending').get()).size;
+            document.getElementById('pendingWithdrawals').innerText = (await db.collection('withdraw_requests').where('status', '==', 'pending').get()).size;
+            document.getElementById('activeMatches').innerText = (await db.collection('matches').where('status', 'in', ['waiting', 'live']).get()).size;
+        }
+
+        // Save Settings
+        window.saveSettings = async () => {
+            await db.collection('settings').doc('config').set({
+                minDeposit: parseInt(document.getElementById('minDeposit').value),
+                maxDeposit: parseInt(document.getElementById('maxDeposit').value),
+                referralBonus: parseInt(document.getElementById('referralBonus').value),
+                welcomeBonus: parseInt(document.getElementById('welcomeBonus').value)
+            });
+            showToast('Settings saved');
+        };
+
+        window.saveRewards = async () => {
+            await db.collection('rewards').doc('config').set({
+                match10: parseInt(document.getElementById('bonus10').value),
+                match20: parseInt(document.getElementById('bonus20').value)
+            });
+            showToast('Rewards saved');
+        };
+
+        // Load Settings
+        async function loadSettings() {
+            const snap = await db.collection('settings').doc('config').get();
+            if (snap.exists) {
+                const s = snap.data();
+                document.getElementById('minDeposit').value = s.minDeposit || 10;
+                document.getElementById('maxDeposit').value = s.maxDeposit || 500;
+                document.getElementById('referralBonus').value = s.referralBonus || 20;
+                document.getElementById('welcomeBonus').value = s.welcomeBonus || 20;
+            }
+        }
+
+        async function loadRewards() {
+            const snap = await db.collection('rewards').doc('config').get();
+            if (snap.exists) {
+                const r = snap.data();
+                document.getElementById('bonus10').value = r.match10 || 20;
+                document.getElementById('bonus20').value = r.match20 || 30;
+            }
+        }
+
+        // Auth Observer
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('dashboardSection').style.display = 'block';
+                
+                updateStats();
+                loadUsers();
+                loadDeposits();
+                loadWithdrawals();
+                loadMatches();
+                loadSettings();
+                loadRewards();
+
+                // Real-time listeners
+                db.collection('users').onSnapshot(() => loadUsers());
+                db.collection('deposit_requests').onSnapshot(() => { loadDeposits(); updateStats(); });
+                db.collection('withdraw_requests').onSnapshot(() => { loadWithdrawals(); updateStats(); });
+                db.collection('matches').onSnapshot(() => { loadMatches(); updateStats(); });
+            } else {
+                document.getElementById('loginSection').style.display = 'block';
+                document.getElementById('dashboardSection').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
